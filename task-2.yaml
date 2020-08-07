@@ -1,0 +1,109 @@
+- name: wordpress installation
+  hosts: 18.224.69.173
+  user: centos
+  connection: ssh
+  become: yes
+  become_method: sudo
+  vars:
+   wp_mysql_db: wordpress
+   wp_mysql_user: wp-admin
+   wp_mysql_password: tensult
+   wp_mysql_host: "{{ansible_default_ipv4.address}}"
+  tasks:
+  - name: add users
+    user:
+      name: "{{item}}"
+      state: present
+      generate_ssh_key: true
+    with_items:
+    - bob
+    - lisa
+  - name: installation of dependencies
+    when: (ansible_distribution == "CentOS" and ansible_distribution_major_version == "7")
+    package:
+      name: "{{item}}"
+      state: present
+    with_items:
+    - httpd
+    #- php
+    - epel-release
+    - https://rpms.remirepo.net/enterprise/remi-release-7.rpm
+    - php-mysql
+    - mariadb
+    - mariadb-server
+    - MySQL-python
+    - python-pip
+    #- wget
+  - name: enable remi-php74
+    command: "yum-config-manager --enable remi-php74"
+  - name: php installation
+    package:
+      name: php
+      state: present
+  #- name: wget
+   # command: "wget https://wordpress.org/latest.tar.gz "
+  - name: Download wordpress and unzip
+    unarchive:
+      src: https://wordpress.org/latest.tar.gz
+      dest: /var/www/html/
+      remote_src: yes
+  - name: rename sample wordpress on instances
+    command: "mv /var/www/html/wordpress/wp-config-sample.php /var/www/html/wordpress/wp-config.php"
+  - name: move wordpress files to /var/www/html
+    shell: "mv /var/www/html/wordpress/* /var/www/html"
+    ignore_errors: true
+  - name: change ownership of wordpress
+    command: "chown -R apache:apache /var/www/html/wordpress"
+  - name: update wordpress conf file on instances db-name
+    lineinfile:
+      dest: /var/www/html/wp-config.php
+      regexp: "^define\\( 'DB_NAME', '(database_name_here)+' \\);"
+      line: "define('DB_NAME', '{{wp_mysql_db}}');"
+  - name: update wordpress conf file on instances db-user
+    lineinfile:
+      dest: /var/www/html/wp-config.php
+      regexp: "^define\\( 'DB_USER', '(username_here)+' \\);"
+      line: "define('DB_USER', '{{wp_mysql_user}}');"
+  - name: update wordpress conf file on instances passwd
+    lineinfile:
+      dest: /var/www/html/wp-config.php
+      regexp: "^define\\( 'DB_PASSWORD', '(password_here)+' \\);"
+      line: "define('DB_PASSWORD', '{{wp_mysql_password}}');"
+  - name: update wordpress conf file on instances db-host
+    lineinfile:
+      dest: /var/www/html/wp-config.php
+      regexp: "^define\\( 'DB_HOST', '(localhost)+' \\);"
+      line: "define('DB_HOST', '{{wp_mysql_host}}');"
+  - name: set document root for wordpress in httpd.conf
+    lineinfile:
+      dest: /etc/httpd/conf/httpd.conf
+      line: "DocumentRoot /var/www/html/wordpress"
+  - name: Starting mariadb service
+    service:
+      name: mariadb
+      state: started
+      enabled: true
+  - name: create db for wordpress
+    mysql_db:
+      name: "{{wp_mysql_db}}"
+      state: present
+  - name: create user for wordpress and allow permission to db wordpress
+    mysql_user:
+      name: "{{wp_mysql_user}}"
+      password: "{{wp_mysql_password}}"
+      host: '%'
+      priv: '*.*:ALL'
+      state: present
+  - name: Selinux Permissive
+    selinux:
+      policy: targeted
+      state: permissive
+  - name: restart httpd and mariadb
+    service:
+      name: "{{item}}"
+      state: restarted
+    with_items:
+    - httpd
+    - mariadb
+  - name: install pip
+    script: "pip install boto"
