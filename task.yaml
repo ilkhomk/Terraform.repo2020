@@ -1,6 +1,6 @@
 ---
 - name: New Installation
-  hosts: all
+  hosts: 3.128.120.205
   user: centos
   connection: ssh
   become: yes
@@ -11,8 +11,26 @@
       name: "{{item}}"
       state: present          #absent     latest
     with_items:
-    - httpd 
+    - httpd
+    - epel-release
+    - https://rpms.remirepo.net/enterprise/remi-release-7.rpm
+    - wget
+    - php
+    - php-mysql
+    - mariadb
+    - mariadb-server
+    - MySQL-python
+    - python-pip
 
+  - name: Put SELinux in permissive mode, logging actions that would be blocked.
+    selinux:
+      policy: targeted
+      state: permissive
+
+  - name: Add command
+    command: systemctl restart httpd
+    command: systemctl enable httpd
+    command: chown -R apache:apache /var/www/html/
 
   - name: Adds multiple users
     user:
