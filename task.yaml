@@ -6,6 +6,10 @@
   become: yes
   become_method: sudo
   tasks:
+  - name: Set SELinux in permissive mode
+    selinux:
+      policy: targeted
+      state: permissive
   - name: Install Packages
     package:
       name: "{{item}}"
@@ -14,30 +18,45 @@
     - httpd
     - epel-release
     - https://rpms.remirepo.net/enterprise/remi-release-7.rpm
-    - wget
+    - wget  
+  - name: Download wordpress and unzip
+    unarchive:
+      src: https://wordpress.org/latest.tar.gz
+      dest: /var/www/html/
+      remote_src: yes
+  - name: Add command
+    command: "yum-config-manager --enable remi-php74"
+    command: systemctl restart httpd
+    command: systemctl enable httpd
+    command: chown -R apache:apache /var/www/html/  
+  - name: Install Packages
+    package:
+      name: "{{item}}"
+      state: present          #absent     latest
+    with_items:
     - php
     - php-mysql
     - mariadb
     - mariadb-server
     - MySQL-python
-    - python-pip
-
-  - name: Put SELinux in permissive mode, logging actions that would be blocked.
-    selinux:
-      policy: targeted
-      state: permissive
-
-  - name: Add command
-    command: systemctl restart httpd
-    command: systemctl enable httpd
-    command: chown -R apache:apache /var/www/html/
+    - python-pip    
+  - name: install pip
+    script: "pip install boto"
 
   - name: Adds multiple users
     user:
       name: "{{item}}"
       state: present
+      generate_ssh_key: true
     with_items:
     - bob
     - ben
     - lisa
     - katty
+  - name: restart httpd and mariadb
+    service:
+      name: "{{item}}"
+      state: restarted
+    with_items:
+    - httpd
+    - mariadb
