@@ -54,46 +54,11 @@
     ignore_errors: true
   - name: change ownership of wordpress
     command: "chown -R apache:apache /var/www/html/wordpress"
-  - name: update wordpress conf file on instances db-name
-    lineinfile:
-      dest: /var/www/html/wp-config.php
-      regexp: "^define\\( 'DB_NAME', '(database_name_here)+' \\);"
-      line: "define('DB_NAME', '{{wp_mysql_db}}');"
-  - name: update wordpress conf file on instances db-user
-    lineinfile:
-      dest: /var/www/html/wp-config.php
-      regexp: "^define\\( 'DB_USER', '(username_here)+' \\);"
-      line: "define('DB_USER', '{{wp_mysql_user}}');"
-  - name: update wordpress conf file on instances passwd
-    lineinfile:
-      dest: /var/www/html/wp-config.php
-      regexp: "^define\\( 'DB_PASSWORD', '(password_here)+' \\);"
-      line: "define('DB_PASSWORD', '{{wp_mysql_password}}');"
-  - name: update wordpress conf file on instances db-host
-    lineinfile:
-      dest: /var/www/html/wp-config.php
-      regexp: "^define\\( 'DB_HOST', '(localhost)+' \\);"
-      line: "define('DB_HOST', '{{wp_mysql_host}}');"
-  - name: set document root for wordpress in httpd.conf
-    lineinfile:
-      dest: /etc/httpd/conf/httpd.conf
-      line: "DocumentRoot /var/www/html/wordpress"
   - name: Starting mariadb service
     service:
       name: mariadb
       state: started
       enabled: true
-  - name: create db for wordpress
-    mysql_db:
-      name: "{{wp_mysql_db}}"
-      state: present
-  - name: create user for wordpress and allow permission to db wordpress
-    mysql_user:
-      name: "{{wp_mysql_user}}"
-      password: "{{wp_mysql_password}}"
-      host: '%'
-      priv: '*.*:ALL'
-      state: present
   - name: Selinux Permissive
     selinux:
       policy: targeted
