@@ -1,31 +1,25 @@
-- name: wordpress installation
-  hosts: 18.224.69.173
+---
+- hosts: 18.217.248.146
   user: centos
   connection: ssh
   become: yes
   become_method: sudo
-  vars:
-   wp_mysql_db: wordpress
-   wp_mysql_user: wp-admin
-   wp_mysql_password: tensult
-   wp_mysql_host: "{{ansible_default_ipv4.address}}"
   tasks:
-  - name: add users
-    user:
-      name: "{{item}}"
+  - user:
+      name: “{{item}}”
       state: present
       generate_ssh_key: true
     with_items:
     - bob
+    - ben
     - lisa
-  - name: installation of dependencies
-    when: (ansible_distribution == "CentOS" and ansible_distribution_major_version == "7")
-    package:
-      name: "{{item}}"
+    - katty
+  - package:
+      name: “{{item}}”
       state: present
     with_items:
     - httpd
-    #- php
+    - php
     - epel-release
     - https://rpms.remirepo.net/enterprise/remi-release-7.rpm
     - php-mysql
@@ -33,42 +27,38 @@
     - mariadb-server
     - MySQL-python
     - python-pip
-    #- wget
-  - name: enable remi-php74
-    command: "yum-config-manager --enable remi-php74"
-  - name: php installation
-    package:
-      name: php
-      state: present
-  #- name: wget
-   # command: "wget https://wordpress.org/latest.tar.gz "
-  - name: Download wordpress and unzip
-    unarchive:
+    - wget
+    - elinks
+    - mysql
+  - command: “yum-config-manager --enable remi-php74”
+  - unarchive:
       src: https://wordpress.org/latest.tar.gz
       dest: /var/www/html/
       remote_src: yes
-  - name: rename sample wordpress on instances
-    command: "mv /var/www/html/wordpress/wp-config-sample.php /var/www/html/wordpress/wp-config.php"
-  - name: move wordpress files to /var/www/html
-    shell: "mv /var/www/html/wordpress/* /var/www/html"
+  - shell: “mv /var/www/html/wordpress/* /var/www/html”
     ignore_errors: true
-  - name: change ownership of wordpress
-    command: "chown -R apache:apache /var/www/html/wordpress"
-  - name: Starting mariadb service
-    service:
+  - command: “chown -R apache:apache /var/www/html”
+  - shell: elinks://18.217.248.146
+  - service:
       name: mariadb
       state: started
       enabled: true
-  - name: Selinux Permissive
-    selinux:
+  - selinux:
       policy: targeted
       state: permissive
-  - name: restart httpd and mariadb
-    service:
-      name: "{{item}}"
+  - service:
+      name: “{{item}}”
       state: restarted
     with_items:
     - httpd
     - mariadb
-  - name: install pip
-    script: "pip install boto"
+  - script: “pip install boto”
+    ignore_errors: yes
+  - route53:
+      state: create
+      zone: maxirs.com
+      record: wordpress.maxirs.com
+      type: A
+      ttl: 30
+      value: 18.217.248.146
+      wait: yes
